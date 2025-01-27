@@ -29,7 +29,8 @@
         private void InitializeComponent()
         {
             buttonUpdate = new Button();
-            flowLayoutPanel = new FlowLayoutPanel();
+            recycler = new DataGridView();
+            ((System.ComponentModel.ISupportInitialize)recycler).BeginInit();
             SuspendLayout();
             // 
             // buttonUpdate
@@ -43,32 +44,34 @@
             buttonUpdate.Text = "Update 10000 Buttons";
             buttonUpdate.UseVisualStyleBackColor = true;
             // 
-            // flowLayoutPanel
+            // recycler
             // 
-            flowLayoutPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            flowLayoutPanel.AutoScroll = true;
-            flowLayoutPanel.Location = new Point(28, 121);
-            flowLayoutPanel.Name = "flowLayoutPanel";
-            flowLayoutPanel.Size = new Size(422, 795);
-            flowLayoutPanel.TabIndex = 1;
+            recycler.BackgroundColor = Color.Azure;
+            recycler.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            recycler.Location = new Point(28, 112);
+            recycler.Name = "recycler";
+            recycler.RowHeadersWidth = 62;
+            recycler.Size = new Size(422, 813);
+            recycler.TabIndex = 1;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(478, 944);
-            Controls.Add(flowLayoutPanel);
+            Controls.Add(recycler);
             Controls.Add(buttonUpdate);
             Name = "MainForm";
             Padding = new Padding(25);
-            Text = "Main Form";
             StartPosition = FormStartPosition.CenterScreen;
+            Text = "Main Form";
+            ((System.ComponentModel.ISupportInitialize)recycler).EndInit();
             ResumeLayout(false);
         }
 
         #endregion
 
         private Button buttonUpdate;
-        private FlowLayoutPanel flowLayoutPanel;
+        private DataGridView recycler;
     }
 }

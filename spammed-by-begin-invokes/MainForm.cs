@@ -5,29 +5,35 @@ namespace spammed_by_begin_invokes
 {
     public partial class MainForm : Form
     {
-        public MainForm() => InitializeComponent();
-
-        private char _round = 'A';
-        protected override async void OnLoad(EventArgs e)
+        public MainForm()
         {
-            base.OnLoad(e);
-            var stopwatch = Stopwatch.StartNew();
-            for (int i = 1; i <= 10000; i++)
-            {
-                var button = new Button
+            InitializeComponent();
+            _buttons = Enumerable.Range(1, 10000).Select(n=>
+                new Button
                 {
                     Margin = new Padding(),
-                    Width = flowLayoutPanel.Width -
-                    (flowLayoutPanel.Padding.Horizontal + SystemInformation.VerticalScrollBarWidth),
-                    Height = 100,
-                    Text = $"Button {i}.{_round}",
-                };
+                    Dock = DockStyle.Fill,
+                    Text = $"Button {n}.{_round}",
+                }
+            ).ToArray();
+            foreach (var button in _buttons)
+            {
                 button.Click += Any_Clicked;
-                flowLayoutPanel.Controls.Add(button);
-                await Task.Delay(1);
             }
-            stopwatch.Stop();
-            MessageBox.Show(stopwatch.Elapsed.ToString(@"hh\:mm\:ss"));
+        }
+        private readonly Button[] _buttons;
+        private char _round = 'A';
+
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            recycler.RowTemplate.Height = 100;
+            recycler.VirtualMode = true;
+            recycler.ReadOnly = true;
+            recycler.ColumnHeadersVisible = false;
+            recycler.RowHeadersVisible = false;
+            recycler.RowCount = _buttons.Length;
+            recycler.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         }
 
         private void Any_Clicked(object? sender, EventArgs e)
