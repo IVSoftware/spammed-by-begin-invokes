@@ -16,7 +16,7 @@ namespace spammed_by_begin_invokes
                 if (buttonUpdate.Checked)
                 {
                     _cts = new CancellationTokenSource();
-                    await Task.Run(async () =>
+                    await Task.Run(() =>
                     {
                         for (int i = 0; i < SAMPLE_SIZE; i++)
                         {
@@ -26,7 +26,7 @@ namespace spammed_by_begin_invokes
                                 // Perform a real update on the UI.
                                 Text = i.ToString();
                             });
-                            await Task.Run(() => iAsyncResult.AsyncWaitHandle.WaitOne());
+                            iAsyncResult.AsyncWaitHandle.WaitOne();
                         }
                     }, _cts.Token);
                     MessageBox.Show("Done");
