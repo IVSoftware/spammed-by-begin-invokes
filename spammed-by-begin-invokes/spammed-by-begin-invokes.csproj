@@ -9,4 +9,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="IVSoftware.Portable.WatchdogTimer" Version="1.2.1" />
+  </ItemGroup>
+
 </Project>
