@@ -29,8 +29,6 @@
         private void InitializeComponent()
         {
             buttonUpdate = new Button();
-            recycler = new DataGridView();
-            ((System.ComponentModel.ISupportInitialize)recycler).BeginInit();
             SuspendLayout();
             // 
             // buttonUpdate
@@ -41,37 +39,23 @@
             buttonUpdate.Name = "buttonUpdate";
             buttonUpdate.Size = new Size(428, 81);
             buttonUpdate.TabIndex = 0;
-            buttonUpdate.Text = "Update 10000 Buttons";
             buttonUpdate.UseVisualStyleBackColor = true;
-            // 
-            // recycler
-            // 
-            recycler.BackgroundColor = Color.Azure;
-            recycler.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            recycler.Location = new Point(28, 112);
-            recycler.Name = "recycler";
-            recycler.RowHeadersWidth = 62;
-            recycler.Size = new Size(422, 813);
-            recycler.TabIndex = 1;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(478, 944);
-            Controls.Add(recycler);
+            ClientSize = new Size(478, 127);
             Controls.Add(buttonUpdate);
             Name = "MainForm";
             Padding = new Padding(25);
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Main Form";
-            ((System.ComponentModel.ISupportInitialize)recycler).EndInit();
             ResumeLayout(false);
         }
 
         #endregion
 
         private Button buttonUpdate;
-        private DataGridView recycler;
     }
 }
