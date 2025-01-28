@@ -13,15 +13,16 @@ namespace spammed_by_begin_invokes
             buttonUpdate.Text = $"Update {SAMPLE_SIZE}x";
             buttonUpdate.Click += async(sender, e) =>
             {
-                await Task.Run(() =>
+                await Task.Run(async () =>
                 {
                     for (int i = 0; i < SAMPLE_SIZE; i++)
                     {
-                        BeginInvoke(() =>
+                        var iAsyncResult = BeginInvoke(() =>
                         {
                             // Perform a real update on the UI.
                             Text = i.ToString();
                         });
+                        await Task.Run(()=>iAsyncResult.AsyncWaitHandle.WaitOne());
                     }
                 });
                 MessageBox.Show("Done");
