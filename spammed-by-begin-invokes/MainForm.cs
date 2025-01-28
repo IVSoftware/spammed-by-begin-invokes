@@ -1,5 +1,6 @@
 
 using System.Diagnostics;
+using System.Windows.Forms.VisualStyles;
 
 namespace spammed_by_begin_invokes
 {
@@ -12,14 +13,9 @@ namespace spammed_by_begin_invokes
                 new Button
                 {
                     Margin = new Padding(),
-                    Dock = DockStyle.Fill,
                     Text = $"Button {n}.{_round}",
                 }
             ).ToArray();
-            foreach (var button in _buttons)
-            {
-                button.Click += Any_Clicked;
-            }
         }
         private readonly Button[] _buttons;
         private char _round = 'A';
@@ -34,6 +30,22 @@ namespace spammed_by_begin_invokes
             recycler.RowHeadersVisible = false;
             recycler.RowCount = _buttons.Length;
             recycler.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            recycler.CellPainting += (sender, e) =>
+            {
+                Debug.WriteLine(e.RowIndex);
+                var button = _buttons[e.RowIndex];
+                //if (button.Parent is null)
+                //{
+                //    recycler.Controls.Add(button);
+                //}
+                ButtonRenderer.DrawButton(e.Graphics, e.CellBounds, button.Text, button.Font, false, PushButtonState.Normal);
+
+                //if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+                //e.PaintBackground(e.ClipBounds, true);
+                //button.Bounds = e.CellBounds;
+                //button.Refresh();
+                e.Handled = true;
+            };
         }
 
         private void Any_Clicked(object? sender, EventArgs e)
