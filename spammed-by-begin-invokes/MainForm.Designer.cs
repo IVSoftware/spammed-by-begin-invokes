@@ -28,11 +28,12 @@
         /// </summary>
         private void InitializeComponent()
         {
-            buttonUpdate = new Button();
+            buttonUpdate = new CheckBox();
             SuspendLayout();
             // 
             // buttonUpdate
             // 
+            buttonUpdate.Appearance = Appearance.Button;
             buttonUpdate.Dock = DockStyle.Top;
             buttonUpdate.Font = new Font("Segoe UI", 16F);
             buttonUpdate.Location = new Point(25, 25);
@@ -56,6 +57,6 @@
 
         #endregion
 
-        private Button buttonUpdate;
+        private CheckBox buttonUpdate;
     }
 }

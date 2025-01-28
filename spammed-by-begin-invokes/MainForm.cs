@@ -6,34 +6,38 @@ namespace spammed_by_begin_invokes
 {
     public partial class MainForm : Form
     {
-        const int SAMPLE_SIZE = 250000;
+        const int SAMPLE_SIZE = 100000;
         public MainForm()
         {
             InitializeComponent();
             buttonUpdate.Text = $"Update {SAMPLE_SIZE}x";
-            buttonUpdate.Click += async(sender, e) =>
+            buttonUpdate.CheckedChanged += async(sender, e) =>
             {
-                await Task.Run(async () =>
+                if (buttonUpdate.Checked)
                 {
-                    for (int i = 0; i < SAMPLE_SIZE; i++)
+                    _cts = new CancellationTokenSource();
+                    await Task.Run(async () =>
                     {
-                        var iAsyncResult = BeginInvoke(() =>
+                        for (int i = 0; i < SAMPLE_SIZE; i++)
                         {
-                            // Perform a real update on the UI.
-                            Text = i.ToString();
-                        });
-                        await Task.Run(()=>iAsyncResult.AsyncWaitHandle.WaitOne());
-                    }
-                });
-                MessageBox.Show("Done");
-            };
-            FormClosing += (sender, e) =>
-            {
-                if(DialogResult.Cancel == MessageBox.Show("App is Closing", "Alert", MessageBoxButtons.OKCancel))
+                            if (_cts.Token.IsCancellationRequested) return;
+                            var iAsyncResult = BeginInvoke(() =>
+                            {
+                                // Perform a real update on the UI.
+                                Text = i.ToString();
+                            });
+                            await Task.Run(() => iAsyncResult.AsyncWaitHandle.WaitOne());
+                        }
+                    }, _cts.Token);
+                    MessageBox.Show("Done");
+                }
+                else
                 {
-                    e.Cancel = true;
+                    _cts?.Cancel();
                 }
             };
         }
+        Task? _runningTask = null;
+        CancellationTokenSource? _cts = null;
     }
 }
