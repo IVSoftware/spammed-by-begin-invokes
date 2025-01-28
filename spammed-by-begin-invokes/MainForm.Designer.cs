@@ -40,6 +40,7 @@
             buttonUpdate.Name = "buttonUpdate";
             buttonUpdate.Size = new Size(428, 81);
             buttonUpdate.TabIndex = 0;
+            buttonUpdate.TextAlign = ContentAlignment.MiddleCenter;
             buttonUpdate.UseVisualStyleBackColor = true;
             // 
             // MainForm
