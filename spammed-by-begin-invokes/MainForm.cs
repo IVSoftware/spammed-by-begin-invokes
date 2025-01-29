@@ -7,7 +7,7 @@ namespace spammed_by_begin_invokes
 {
     public partial class MainForm : Form
     {
-        const int SAMPLE_SIZE = 10001;
+        const int SAMPLE_SIZE = 55000;
         public MainForm()
         {
             InitializeComponent();
@@ -22,7 +22,7 @@ namespace spammed_by_begin_invokes
                     _cts = new CancellationTokenSource();
                     await Task.Run(() =>
                     {
-                        for (int i = 0; i < SAMPLE_SIZE; i++)
+                        for (int i = 1; i <= SAMPLE_SIZE; i++)
                         {
                             if (_cts.Token.IsCancellationRequested) return;
                             BeginInvoke(() =>
@@ -31,7 +31,11 @@ namespace spammed_by_begin_invokes
                                 Text = i.ToString();
                             });
                             // Hardware delay. Spin some clock cycles.
-                            for (int count = 0; count < 25000; count++);
+                            // WARNING: Not production code. It's very system-dependent.
+                            // THAT SAID: You can actually play with this and make it
+                            // "take longer" to overring the buffer. For example, by setting
+                            // this to 50000 I was able to run it up to  55000 but not 65000.
+                            for (int count = 0; count < 50000; count++);
                         }
                     }, _cts.Token);
 
