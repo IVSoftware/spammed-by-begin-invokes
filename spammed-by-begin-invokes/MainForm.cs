@@ -1,5 +1,6 @@
 
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Windows.Forms.VisualStyles;
 
 namespace spammed_by_begin_invokes
@@ -28,16 +29,14 @@ namespace spammed_by_begin_invokes
                             {
                                 // Perform a real update on the UI.
                                 Text = i.ToString();
-                                _updateRun.Add(stopwatch.Elapsed.ToString(@"hh\:mm\:ss\:ffff"));
                             });
+                            // Hardware delay. Spin some clock cycles.
+                            for (int count = 0; count < 25000; count++);
                         }
-                        _updateScheduled.Add(stopwatch.Elapsed.ToString(@"hh\:mm\:ss\:ffff"));
                     }, _cts.Token);
 
                     stopwatch.Stop();
                     MessageBox.Show($"Done @ {stopwatch.Elapsed.ToString(@"hh\:mm\:ss\:ffff")}");
-                    Debug.WriteLine(string.Join("\n", _updateScheduled));
-                    Debug.WriteLine(string.Join("\n", _updateRun));
                     BeginInvoke(()=>buttonUpdate.Checked = false);
                 }
                 else
