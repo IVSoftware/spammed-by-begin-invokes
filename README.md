@@ -26,7 +26,7 @@ ___
 
 > Your hypothesis that the BeginInvoke silently discards messages is reasonable, but it's a frightening hypothesis. It's hard to believe that Microsoft opened intentionally such a pit of failure for the developers to fall in. Can you think of any experiment that would reinforce this hypothesis? It's frightening to think that I can await something on the UI thread, and the await will never complete because some subsequent events evicted the completion callback of the awaited task from the memory of the application!
 
-YES! I had to think about it a couple days, but in fact I _can_ devise such an experiment.
+YES! I had to think about it a couple days, but in fact I _can_ devise such an experiment. We just have to hook the `WndProc` and capture a histogram of the messages in the sample period. **NOTE** The act of observation WILL change the thng observed. I will slow down the flooding of the queue and may result in an axtra 1 or 2 WM_USER _entries.
 
 ___
 
@@ -86,14 +86,6 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
                     // Perform a real update on the UI.
                     Text = captureN.ToString();
                 });
-#if false
-                // Hardware delay. Spin some clock cycles.
-                // WARNING: Not production code. It's very system-dependent.
-                // THAT SAID: You can actually play with this and make it
-                // "take longer" to overring the buffer. For example, by setting
-                // this to 50000 I was able to run it up to  55000 but not 65000.
-                for (int count = 0; count < 50000; count++);
-#endif
             }
         }, _cts.Token);
 
@@ -105,36 +97,23 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
     {
         _cts?.Cancel();
         for (int i = 0; i < _histogram.Length; i++)
-        {
+        {            
             if (_histogram[i] > 0)
             {
                 string messageName = i switch
                 {
-                    0x0006 => "WM_ACTIVATE",
-                    0x0007 => "WM_SETFOCUS",
-                    0x0008 => "WM_KILLFOCUS",
-                    0x000A => "WM_CLOSE",
                     0x000C => "WM_SYSCOLORCHANGE",
                     0x000D => "WM_QUERYOPEN",
                     0x000E => "WM_ERASEBKGND",
                     0x0014 => "WM_SETCURSOR",
-                    0x001F => "WM_WINDOWPOSCHANGING",
-                    0x0020 => "WM_WINDOWPOSCHANGED",
-                    0x002B => "WM_COMPACTING",
-                    0x0046 => "WM_WINDOWPOSCHANGED",
+                    0x0021 => "Unknown (0x0021)",
                     0x007F => "WM_GETICON",
-                    0x0086 => "WM_NCACTIVATE",
-                    0x00AE => "Possible Error Message",
-                    0x0135 => "WM_PRINTCLIENT",
-                    0x0201 => "WM_LBUTTONDOWN",
-                    0x0202 => "WM_LBUTTONUP",  
-                    0x0281 => "WM_IME_SETCONTEXT",
-                    0x0282 => "WM_IME_NOTIFY",
+                    0x00AE => "WM_NCUAHDRAWCAPTION (undocumented, according to 'best information')",
+                    0x0210 => "Unknown (0x0210)",
                     0x0318 => "Unknown (Possibly App-Specific)",
                     0xC1F0 => "WM_USER+X (App-Defined Message)",
-                    _ => $"Unknown (0x{i:X4})"
+                    _ => $"Unknown (0x{i:X4}) UNEXPECTED"
                 };
-
                 Debug.WriteLine($"[{_histogram[i], 5}]: 0X{i:X4} {messageName}");
             }
         }
@@ -144,8 +123,6 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
 
 **Test Result**
 
-
-http://crinc.com/WebHelp/Filepro/Windows_Error_Messages_1.htm
 
 **With `SAMPLE_SIZE=20000`**
 
@@ -160,4 +137,25 @@ http://crinc.com/WebHelp/Filepro/Windows_Error_Messages_1.htm
 [    1]: 0X0210 Unknown (0x0210)
 [    3]: 0X0318 Unknown (Possibly App-Specific)
 [10001]: 0XC1F0 WM_USER+X (App-Defined Message)
+
+
+---
+
+**Key Takeaways**
+
+1. **`WM_USER+X` Messages Are Throttled at ~10000**
+   - The count aligns **almost exactly** with `USERPostMessageLimit`, confirming **Windows enforces a cap on user-defined messages.**
+   - **Any excess messages were discarded by Windows**—not just queued.
+
+2. **System Messages (`WM_SYSCOLORCHANGE`, `WM_ERASEBKGND`, etc.) Are NOT Throttled**
+   - Despite message flooding, **Windows continued processing core system messages.**
+   - This supports the hypothesis that **Windows prioritizes system messages over user-generated ones.**
+
+3. **Excessive `WM_ERASEBKGND` Activity (80,009)**
+   - This suggests **a massive repainting or invalidation cycle**, possibly due to UI thrashing caused by `BeginInvoke`.
+
+4. **The Appearance of `WM_NCUAHDRAWCAPTION` (`0x00AE`)**
+   - This undocumented message is likely linked to **non-client area (title bar) rendering.**
+   - Its high count (20,000) suggests **Windows is handling frequent UI redraw requests**.
+
 

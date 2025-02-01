@@ -61,29 +61,17 @@ namespace spammed_by_begin_invokes
                         {
                             string messageName = i switch
                             {
-                                0x0006 => "WM_ACTIVATE",
-                                0x0007 => "WM_SETFOCUS",
-                                0x0008 => "WM_KILLFOCUS",
-                                0x000A => "WM_CLOSE",
                                 0x000C => "WM_SYSCOLORCHANGE",
                                 0x000D => "WM_QUERYOPEN",
                                 0x000E => "WM_ERASEBKGND",
                                 0x0014 => "WM_SETCURSOR",
-                                0x001F => "WM_WINDOWPOSCHANGING",
-                                0x0020 => "WM_WINDOWPOSCHANGED",
-                                0x002B => "WM_COMPACTING",
-                                0x0046 => "WM_WINDOWPOSCHANGED",
+                                0x0021 => "Unknown (0x0021)",
                                 0x007F => "WM_GETICON",
-                                0x0086 => "WM_NCACTIVATE",
-                                0x00AE => "WM_NCUAHDRAWCAPTION (undocumented, according to 'best information'",
-                                0x0135 => "WM_PRINTCLIENT",
-                                0x0201 => "WM_LBUTTONDOWN",
-                                0x0202 => "WM_LBUTTONUP",  
-                                0x0281 => "WM_IME_SETCONTEXT",
-                                0x0282 => "WM_IME_NOTIFY",
+                                0x00AE => "WM_NCUAHDRAWCAPTION (undocumented, according to 'best information')",
+                                0x0210 => "Unknown (0x0210)",
                                 0x0318 => "Unknown (Possibly App-Specific)",
                                 0xC1F0 => "WM_USER+X (App-Defined Message)",
-                                _ => $"Unknown (0x{i:X4})"
+                                _ => $"Unknown (0x{i:X4}) UNEXPECTED"
                             };
 
                             Debug.WriteLine($"[{_histogram[i], 5}]: 0X{i:X4} {messageName}");
@@ -101,10 +89,15 @@ namespace spammed_by_begin_invokes
         int[] _histogram = new int[0x10000];
         DateTime _firstWMUSER;
         DateTime _lastWMUSER;
+
+        bool _capture = false;
         protected override void WndProc(ref Message m)
         {
             base.WndProc(ref m);
-            _histogram[m.Msg]++;
+            if (_capture)
+            {
+                _histogram[m.Msg]++;
+            }
         }
     }
 }
