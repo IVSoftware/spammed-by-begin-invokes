@@ -72,14 +72,12 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
         lock (_lock)
         {
             _histogram = new int[0x10000];
+            _capture = true;
         }
-        Stopwatch stopwatch = Stopwatch.StartNew();
-        _cts = new CancellationTokenSource();
         await Task.Run(() =>
         {
             for (int i = 1; i <= SAMPLE_SIZE; i++)
             {
-                if (_cts.Token.IsCancellationRequested) return;
                 int captureN = i;
                 BeginInvoke(() =>
                 {
@@ -87,17 +85,21 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
                     Text = captureN.ToString();
                 });
             }
-        }, _cts.Token);
-
-        stopwatch.Stop();
-        MessageBox.Show($"Done @ {stopwatch.Elapsed.ToString(@"hh\:mm\:ss\:ffff")}");
+        });
+        lock (_lock)
+        {
+            _capture = false;
+        }
         BeginInvoke(()=>buttonUpdate.Checked = false);
     }
     else
     {
-        _cts?.Cancel();
+        lock (_lock)
+        {
+            _capture = false;
+        }
         for (int i = 0; i < _histogram.Length; i++)
-        {            
+        {
             if (_histogram[i] > 0)
             {
                 string messageName = i switch
@@ -114,9 +116,11 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
                     0xC1F0 => "WM_USER+X (App-Defined Message)",
                     _ => $"Unknown (0x{i:X4}) UNEXPECTED"
                 };
+
                 Debug.WriteLine($"[{_histogram[i], 5}]: 0X{i:X4} {messageName}");
             }
         }
+        Debug.WriteLine(string.Empty);
     }
 };
 ~~~
