@@ -24,7 +24,7 @@ My test engineering spidey senses tell me there is some better way to observe th
 ___
 @ Theodor Zoulias:
 
-> Your hypothesis that the BeginInvoke silently discards messages is reasonable, but it's a frightening hypothesis. It's hard to believe that Microsoft opened intentionally such a pit of failure for the developers to fall in. Can you think of any experiment that would reinforce this hypothesis? It's frightening to think that I can await something on the UI thread, and the await will never complete because some subsequent events evicted the completion callback of the awaited task from the memory of the application!
+> Your hypothesis that the BeginInvoke silently discards messages is reasonable, but it's a frightening hypothesis. It's hard to believe that Microsoft opened intentionally such a pit of failure for the developers to fall in. Can you think of any experiment that would reinforce this hypothesis?
 
 YES! I had to think about it a couple days, but in fact I _can_ devise such an experiment. We just have to hook the `WndProc` and capture a histogram of the messages in the sample period. **NOTE** The act of observation WILL change the thng observed. I will slow down the flooding of the queue and may result in an axtra 1 or 2 WM_USER _entries.
 
@@ -55,7 +55,10 @@ ___
 int[] _histogram = new int[0x10000];
 protected override void WndProc(ref Message m)
 {
-    base.WndProc(ref m);
+    if (_capture)
+    {
+        base.WndProc(ref m);
+    }
     _histogram[m.Msg]++;
 }
 ~~~
@@ -121,23 +124,25 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
 };
 ~~~
 
+___
+
 **Test Result**
 
 
 **With `SAMPLE_SIZE=20000`**
 
-
+~~~plaintext
 [20000]: 0X000C WM_SYSCOLORCHANGE
-[80009]: 0X000D WM_QUERYOPEN
-[80009]: 0X000E WM_ERASEBKGND
-[    3]: 0X0014 WM_SETCURSOR
-[    1]: 0X0021 Unknown (0x0021)
-[    4]: 0X007F WM_GETICON
-[20000]: 0X00AE WM_ENABLE
-[    1]: 0X0210 Unknown (0x0210)
-[    3]: 0X0318 Unknown (Possibly App-Specific)
+[80006]: 0X000D WM_GETTEXT
+[80006]: 0X000E WM_GETTEXTLENGTH
+[    2]: 0X0014 WM_ERASEBKGND
+[    1]: 0X0021 WM_MOUSEACTIVATE
+[    3]: 0X007F WM_GETICON
+[20000]: 0X00AE WM_NCUAHDRAWCAPTION (Undocumented, according to best available source)
+[    1]: 0X0210 WM_PARENTNOTIFY
+[    2]: 0X0318 WM_PRINTCLIENT
 [10001]: 0XC1F0 WM_USER+X (App-Defined Message)
-
+~~~
 
 ---
 
@@ -158,4 +163,70 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
    - This undocumented message is likely linked to **non-client area (title bar) rendering.**
    - Its high count (20,000) suggests **Windows is handling frequent UI redraw requests**.
 
+___
 
+
+@ Theodor Zoulias:
+
+> It's frightening to think that I can await something on the UI thread, and the await will never complete because some subsequent events evicted the completion callback of the awaited task from the memory of the application!
+
+It's probably not as frightening as you think. 
+
+- **First:** it's hard to imagine a real-world scenario that would require 10000+ UI updates inside a couple of seconds. Even with a `Progress` flow of 10000+ updates, you're likely going to use the modulo operator to throttle the `ProgressBar` updates. So _show me your use case for that_.
+
+- **Second:** Your UI is unresponsive in the meantime and you're going to notice this.
+
+Here is a second experiment to measure the unresponsiveness (it's what I was trying to show before).
+
+___
+
+**Second Hypothesis**
+
+If the button is clicked TWICE, the second click won't respond until ALL 10000+ BeginInvokes have cycled through!!! 
+
+This is why the _solution_ (if you really have to do this in the first place) would be to await individual BeginInvokes in the loop, so that new messages like WM_LBUTTONDOWN_ will be interspersed.
+
+**Minor Change to Histogram**
+
+Now we'll use `IMessageFilter` instead, in order to be able to detect the mouse messages in the child control.
+
+___
+
+
+**Histogram**
+
+~~~
+public partial class MainForm : Form, IMessageFilter
+{
+    const int SAMPLE_SIZE = 20000;
+    public MainForm()
+    {
+        InitializeComponent();
+        // Hook the message filter
+        Application.AddMessageFilter(this);
+        Disposed += (sender, e) => Application.RemoveMessageFilter(this);
+        .
+        .
+        .
+    }
+
+    // Count child control messages too.
+    public bool PreFilterMessage(ref Message m)
+    {
+        if (_capture && FromHandle(m.HWnd) is CheckBox button)
+        {
+            switch (m.Msg)
+            {
+                // Either way:
+                // This will be the "second" click because we weren't
+                // capturing the first time it clicked to start.
+                case 0x0201: // MouseDowm
+                case 0x0203: // MouseDoubleClick
+                    _stopwatch?.Stop();
+                    break;
+            }
+        }
+        return false;
+    }
+}
+~~~

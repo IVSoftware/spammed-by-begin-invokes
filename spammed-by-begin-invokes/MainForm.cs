@@ -7,12 +7,15 @@ using System.Windows.Forms.VisualStyles;
 
 namespace spammed_by_begin_invokes
 {
-    public partial class MainForm : Form
+    public partial class MainForm : Form, IMessageFilter
     {
-        const int SAMPLE_SIZE = 20000;
+        const int SAMPLE_SIZE = 100000;
         public MainForm()
         {
             InitializeComponent();
+            Application.AddMessageFilter(this);
+            Disposed += (sender, e) => Application.RemoveMessageFilter(this);
+
             buttonUpdate.Text = $"Update {SAMPLE_SIZE}x";
             buttonUpdate.CheckedChanged += async(sender, e) =>
             {
@@ -22,10 +25,13 @@ namespace spammed_by_begin_invokes
                     _updateScheduled.Clear();
                     lock (_lock)
                     {
+                        _stopwatch = Stopwatch.StartNew();
                         _histogram = new int[0x10000];
+                        // Add in the events that got us here (before the histogram started counting).
+                        _histogram[0x0201]++;
+                        _histogram[0x0202]++;
                         _capture = true;
                     }
-                    Stopwatch stopwatch = Stopwatch.StartNew();
                     _cts = new CancellationTokenSource();
                     await Task.Run(() =>
                     {
@@ -52,8 +58,6 @@ namespace spammed_by_begin_invokes
                     {
                         _capture = false;
                     }
-                    stopwatch.Stop();
-                    MessageBox.Show($"Done @ {stopwatch.Elapsed.ToString(@"hh\:mm\:ss\:ffff")}");
                     BeginInvoke(()=>buttonUpdate.Checked = false);
                 }
                 else
@@ -63,6 +67,8 @@ namespace spammed_by_begin_invokes
                     {
                         _capture = false;
                     }
+                    Debug.WriteLine(string.Empty);
+                    Debug.WriteLine($"The SECOND mouse click FINALLY comes to front of queue @ {_stopwatch?.Elapsed.TotalSeconds:f2} S");
                     for (int i = 0; i < _histogram.Length; i++)
                     {
                         if (_histogram[i] > 0)
@@ -76,6 +82,10 @@ namespace spammed_by_begin_invokes
                                 0x0021 => "WM_MOUSEACTIVATE",
                                 0x007F => "WM_GETICON",
                                 0x00AE => "WM_NCUAHDRAWCAPTION (Undocumented, according to best available source)",
+                                0x0200 => "WM_MOUSEMOVE",
+                                0x0201 => "WM_LBUTTONDOWN",
+                                0x0202 => "WM_LBUTTONUP",
+                                0x0203 => "WM_LBUTTONDBLCLK (Do second click a little slower please)",
                                 0x0210 => "WM_PARENTNOTIFY",
                                 0x0318 => "WM_PRINTCLIENT",
                                 0xC1F0 => "WM_USER+X (App-Defined Message)",
@@ -96,17 +106,37 @@ namespace spammed_by_begin_invokes
 
 
         int[] _histogram = new int[0x10000];
-        DateTime _firstWMUSER;
-        DateTime _lastWMUSER;
 
         bool _capture = false;
         protected override void WndProc(ref Message m)
         {
-            base.WndProc(ref m);
             if (_capture)
             {
                 _histogram[m.Msg]++;
             }
+            base.WndProc(ref m);
+        }
+
+        Stopwatch? _stopwatch = null;
+
+        // Count child control messages too.
+        public bool PreFilterMessage(ref Message m)
+        {
+            if (_capture && FromHandle(m.HWnd) is CheckBox button)
+            {
+                switch (m.Msg)
+                {
+                    // Either way:
+                    // This will be the "second" click because we weren't
+                    // capturing the first time it clicked to start.
+                    case 0x0201: // MouseDowm
+                    case 0x0203: // MouseDoubleClick
+                        _stopwatch?.Stop();
+                        break;
+                }
+                _histogram[m.Msg]++;
+            }
+            return false;
         }
     }
 }
