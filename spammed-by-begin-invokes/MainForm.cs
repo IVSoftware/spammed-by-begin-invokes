@@ -32,28 +32,18 @@ namespace spammed_by_begin_invokes
                         _histogram[0x0202]++;
                         _capture = true;
                     }
-                    _cts = new CancellationTokenSource();
                     await Task.Run(() =>
                     {
                         for (int i = 1; i <= SAMPLE_SIZE; i++)
                         {
-                            if (_cts.Token.IsCancellationRequested) return;
                             int captureN = i;
                             BeginInvoke(() =>
                             {
                                 // Perform a real update on the UI.
                                 Text = captureN.ToString();
                             });
-#if false
-                            // Hardware delay. Spin some clock cycles.
-                            // WARNING: Not production code. It's very system-dependent.
-                            // THAT SAID: You can actually play with this and make it
-                            // "take longer" to overring the buffer. For example, by setting
-                            // this to 50000 I was able to run it up to  55000 but not 65000.
-                            for (int count = 0; count < 50000; count++);
-#endif
                         }
-                    }, _cts.Token);
+                    });
                     lock (_lock)
                     {
                         _capture = false;
@@ -62,7 +52,6 @@ namespace spammed_by_begin_invokes
                 }
                 else
                 {
-                    _cts?.Cancel();
                     lock (_lock)
                     {
                         _capture = false;
@@ -100,7 +89,6 @@ namespace spammed_by_begin_invokes
             };
         }
         private readonly object _lock = new object();
-        CancellationTokenSource? _cts = null;
         List<string> _updateScheduled = new ();
         List<string> _updateRun = new ();
 

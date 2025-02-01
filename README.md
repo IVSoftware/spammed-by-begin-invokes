@@ -75,14 +75,12 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
         lock (_lock)
         {
             _histogram = new int[0x10000];
+            _capture = true;
         }
-        Stopwatch stopwatch = Stopwatch.StartNew();
-        _cts = new CancellationTokenSource();
         await Task.Run(() =>
         {
             for (int i = 1; i <= SAMPLE_SIZE; i++)
             {
-                if (_cts.Token.IsCancellationRequested) return;
                 int captureN = i;
                 BeginInvoke(() =>
                 {
@@ -90,17 +88,21 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
                     Text = captureN.ToString();
                 });
             }
-        }, _cts.Token);
-
-        stopwatch.Stop();
-        MessageBox.Show($"Done @ {stopwatch.Elapsed.ToString(@"hh\:mm\:ss\:ffff")}");
+        });
+        lock (_lock)
+        {
+            _capture = false;
+        }
         BeginInvoke(()=>buttonUpdate.Checked = false);
     }
     else
     {
-        _cts?.Cancel();
+        lock (_lock)
+        {
+            _capture = false;
+        }
         for (int i = 0; i < _histogram.Length; i++)
-        {            
+        {
             if (_histogram[i] > 0)
             {
                 string messageName = i switch
@@ -117,11 +119,14 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
                     0xC1F0 => "WM_USER+X (App-Defined Message)",
                     _ => $"Unknown (0x{i:X4}) UNEXPECTED"
                 };
+
                 Debug.WriteLine($"[{_histogram[i], 5}]: 0X{i:X4} {messageName}");
             }
         }
+        Debug.WriteLine(string.Empty);
     }
 };
+~~~
 ~~~
 
 ___
@@ -129,9 +134,9 @@ ___
 **Test Result**
 
 
-**With `SAMPLE_SIZE=20000`**
-
 ~~~plaintext
+With SAMPLE_SIZE=20000
+
 [20000]: 0X000C WM_SYSCOLORCHANGE
 [80006]: 0X000D WM_GETTEXT
 [80006]: 0X000E WM_GETTEXTLENGTH
@@ -156,13 +161,6 @@ ___
    - Despite message flooding, **Windows continued processing core system messages.**
    - This supports the hypothesis that **Windows prioritizes system messages over user-generated ones.**
 
-3. **Excessive `WM_ERASEBKGND` Activity (80,009)**
-   - This suggests **a massive repainting or invalidation cycle**, possibly due to UI thrashing caused by `BeginInvoke`.
-
-4. **The Appearance of `WM_NCUAHDRAWCAPTION` (`0x00AE`)**
-   - This undocumented message is likely linked to **non-client area (title bar) rendering.**
-   - Its high count (20,000) suggests **Windows is handling frequent UI redraw requests**.
-
 ___
 
 
@@ -176,7 +174,7 @@ It's probably not as frightening as you think.
 
 - **Second:** Your UI is unresponsive in the meantime and you're going to notice this.
 
-Here is a second experiment to measure the unresponsiveness (it's what I was trying to show before).
+Here is a second experiment that measures the unresponsiveness (it's what I was trying to show before).
 
 ___
 
@@ -186,14 +184,42 @@ If the button is clicked TWICE, the second click won't respond until ALL 10000+ 
 
 This is why the _solution_ (if you really have to do this in the first place) would be to await individual BeginInvokes in the loop, so that new messages like WM_LBUTTONDOWN_ will be interspersed.
 
-**Minor Change to Histogram**
+**Minor Changes to Test Code**
 
-Now we'll use `IMessageFilter` instead, in order to be able to detect the mouse messages in the child control.
+Implement `IMessageFilter` in order to be able to detect the mouse messages in the child control.
 
 ___
 
+~~~plaintext
+With SAMPLE_SIZE=100000
 
-**Histogram**
+The SECOND mouse click FINALLY comes to front of queue @ 6.61 S
+[100000]: 0X000C WM_SYSCOLORCHANGE
+[400006]: 0X000D WM_GETTEXT
+[400006]: 0X000E WM_GETTEXTLENGTH
+[    2]: 0X0014 WM_ERASEBKGND
+[    1]: 0X0021 WM_MOUSEACTIVATE
+[100000]: 0X00AE WM_NCUAHDRAWCAPTION (Undocumented, according to best available source)
+[    1]: 0X0200 WM_MOUSEMOVE
+[    2]: 0X0201 WM_LBUTTONDOWN
+[    2]: 0X0202 WM_LBUTTONUP
+[    1]: 0X0210 WM_PARENTNOTIFY
+[    2]: 0X0318 WM_PRINTCLIENT
+[10001]: 0XC1F0 WM_USER+X (App-Defined Message)
+~~~
+
+**Key Takeaways**
+
+1. **UI Thread Saturation Blocks Interactive Events**
+   - The **second mouse click was queued behind all `BeginInvoke` calls** and only processed **6.61 seconds later**.
+   - This **confirms UI thread starvation** under high-load scenarios.
+
+2. **Mouse Messages (`WM_LBUTTONDOWN`) Are Not Prioritized**
+   - **Mouse clicks were ignored until the queue cleared**.
+   - This confirms that **Windows does NOT prioritize user interaction over message queue floods**.
+
+
+**Updated Histogram Code**
 
 ~~~
 public partial class MainForm : Form, IMessageFilter
@@ -228,5 +254,77 @@ public partial class MainForm : Form, IMessageFilter
         }
         return false;
     }
+    
+    buttonUpdate.CheckedChanged += async(sender, e) =>
+    {
+        if (buttonUpdate.Checked)
+        {
+            _updateRun.Clear();
+            _updateScheduled.Clear();
+            lock (_lock)
+            {
+                _stopwatch = Stopwatch.StartNew();
+                _histogram = new int[0x10000];
+                // Add in the events that got us here (before the histogram started counting).
+                _histogram[0x0201]++;
+                _histogram[0x0202]++;
+                _capture = true;
+            }
+            await Task.Run(() =>
+            {
+                for (int i = 1; i <= SAMPLE_SIZE; i++)
+                {
+                    int captureN = i;
+                    BeginInvoke(() =>
+                    {
+                        // Perform a real update on the UI.
+                        Text = captureN.ToString();
+                    });
+                }
+            };
+            lock (_lock)
+            {
+                _capture = false;
+            }
+            BeginInvoke(()=>buttonUpdate.Checked = false);
+        }
+        else
+        {
+            lock (_lock)
+            {
+                _capture = false;
+            }
+            Debug.WriteLine(string.Empty);
+            Debug.WriteLine($"The SECOND mouse click FINALLY comes to front of queue @ {_stopwatch?.Elapsed.TotalSeconds:f2} S");
+            for (int i = 0; i < _histogram.Length; i++)
+            {
+                if (_histogram[i] > 0)
+                {
+                    string messageName = i switch
+                    {
+                        0x000C => "WM_SYSCOLORCHANGE",
+                        0x000D => "WM_GETTEXT",
+                        0x000E => "WM_GETTEXTLENGTH",
+                        0x0014 => "WM_ERASEBKGND",
+                        0x0021 => "WM_MOUSEACTIVATE",
+                        0x007F => "WM_GETICON",
+                        0x00AE => "WM_NCUAHDRAWCAPTION (Undocumented, according to best available source)",
+                        0x0200 => "WM_MOUSEMOVE",
+                        0x0201 => "WM_LBUTTONDOWN",
+                        0x0202 => "WM_LBUTTONUP",
+                        0x0203 => "WM_LBUTTONDBLCLK (Do second click a little slower please)",
+                        0x0210 => "WM_PARENTNOTIFY",
+                        0x0318 => "WM_PRINTCLIENT",
+                        0xC1F0 => "WM_USER+X (App-Defined Message)",
+                        _ => $"Unknown (0x{i:X4}) UNEXPECTED"
+                    };
+
+                    Debug.WriteLine($"[{_histogram[i], 5}]: 0X{i:X4} {messageName}");
+                }
+            }
+            Debug.WriteLine(string.Empty);
+        }
+    };
 }
 ~~~
+
