@@ -103,14 +103,14 @@ buttonUpdate.CheckedChanged += async(sender, e) =>
                 string messageName = i switch
                 {
                     0x000C => "WM_SYSCOLORCHANGE",
-                    0x000D => "WM_QUERYOPEN",
-                    0x000E => "WM_ERASEBKGND",
-                    0x0014 => "WM_SETCURSOR",
-                    0x0021 => "Unknown (0x0021)",
+                    0x000D => "WM_GETTEXT",
+                    0x000E => "WM_GETTEXTLENGTH",
+                    0x0014 => "WM_ERASEBKGND",
+                    0x0021 => "WM_MOUSEACTIVATE",
                     0x007F => "WM_GETICON",
-                    0x00AE => "WM_NCUAHDRAWCAPTION (undocumented, according to 'best information')",
-                    0x0210 => "Unknown (0x0210)",
-                    0x0318 => "Unknown (Possibly App-Specific)",
+                    0x00AE => "WM_NCUAHDRAWCAPTION (Undocumented, according to best available source)",
+                    0x0210 => "WM_PARENTNOTIFY",
+                    0x0318 => "WM_PRINTCLIENT",
                     0xC1F0 => "WM_USER+X (App-Defined Message)",
                     _ => $"Unknown (0x{i:X4}) UNEXPECTED"
                 };

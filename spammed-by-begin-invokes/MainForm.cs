@@ -23,6 +23,7 @@ namespace spammed_by_begin_invokes
                     lock (_lock)
                     {
                         _histogram = new int[0x10000];
+                        _capture = true;
                     }
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     _cts = new CancellationTokenSource();
@@ -47,7 +48,10 @@ namespace spammed_by_begin_invokes
 #endif
                         }
                     }, _cts.Token);
-
+                    lock (_lock)
+                    {
+                        _capture = false;
+                    }
                     stopwatch.Stop();
                     MessageBox.Show($"Done @ {stopwatch.Elapsed.ToString(@"hh\:mm\:ss\:ffff")}");
                     BeginInvoke(()=>buttonUpdate.Checked = false);
@@ -55,6 +59,10 @@ namespace spammed_by_begin_invokes
                 else
                 {
                     _cts?.Cancel();
+                    lock (_lock)
+                    {
+                        _capture = false;
+                    }
                     for (int i = 0; i < _histogram.Length; i++)
                     {
                         if (_histogram[i] > 0)
@@ -62,14 +70,14 @@ namespace spammed_by_begin_invokes
                             string messageName = i switch
                             {
                                 0x000C => "WM_SYSCOLORCHANGE",
-                                0x000D => "WM_QUERYOPEN",
-                                0x000E => "WM_ERASEBKGND",
-                                0x0014 => "WM_SETCURSOR",
-                                0x0021 => "Unknown (0x0021)",
+                                0x000D => "WM_GETTEXT",
+                                0x000E => "WM_GETTEXTLENGTH",
+                                0x0014 => "WM_ERASEBKGND",
+                                0x0021 => "WM_MOUSEACTIVATE",
                                 0x007F => "WM_GETICON",
-                                0x00AE => "WM_NCUAHDRAWCAPTION (undocumented, according to 'best information')",
-                                0x0210 => "Unknown (0x0210)",
-                                0x0318 => "Unknown (Possibly App-Specific)",
+                                0x00AE => "WM_NCUAHDRAWCAPTION (Undocumented, according to best available source)",
+                                0x0210 => "WM_PARENTNOTIFY",
+                                0x0318 => "WM_PRINTCLIENT",
                                 0xC1F0 => "WM_USER+X (App-Defined Message)",
                                 _ => $"Unknown (0x{i:X4}) UNEXPECTED"
                             };
@@ -77,6 +85,7 @@ namespace spammed_by_begin_invokes
                             Debug.WriteLine($"[{_histogram[i], 5}]: 0X{i:X4} {messageName}");
                         }
                     }
+                    Debug.WriteLine(string.Empty);
                 }
             };
         }
