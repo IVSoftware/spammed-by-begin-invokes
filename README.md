@@ -17,3 +17,23 @@ The nature of this being an OS value in the registry has me draw some preliminar
 ___
 
 My test engineering spidey senses tell me there is some better way to observe this timing, but I'm still ironing out the specifics.
+
+
+
+
+___
+**Histogram**
+
+The 'hard limit' is set in the registry. We can adjust this key and change this behavior.
+
+Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows : USERPostMessageLimit
+
+The actual behavior in the test is benign, it simply _does_ seem to throw away the first context.
+
+BUT (this is what I'm trying to pin down) it does 'not' throw away e.g. a WM_LBUTTONDOWN. 
+
+THEREFORE: Inferring from the name of the key being ` USERPostMessageLimit` one might wonder whether the contexts are being posted in the WM_USER range and being treated differently from standard messages.
+
+THIS WOULD BE CONSISTENT WITH GOOD OS DESIGN, RIGHT?
+
+e.g. "Limit the extent that user messages flooding the message queue can impact the stabililty of the process."
