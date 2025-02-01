@@ -22,11 +22,14 @@ My test engineering spidey senses tell me there is some better way to observe th
 
 
 ___
+
+This answer is supplemental, because I was asked if I could come up with an experiment that would provide some solid proof.
+
 @ Theodor Zoulias:
 
 > Your hypothesis that the BeginInvoke silently discards messages is reasonable, but it's a frightening hypothesis. It's hard to believe that Microsoft opened intentionally such a pit of failure for the developers to fall in. Can you think of any experiment that would reinforce this hypothesis?
 
-YES! I had to think about it a couple days, but in fact I _can_ devise such an experiment. We just have to hook the `WndProc` and capture a histogram of the messages in the sample period. **NOTE** The act of observation WILL change the thng observed. I will slow down the flooding of the queue and may result in an axtra 1 or 2 WM_USER _entries.
+YES! I had to think about it a couple days, but in fact I _can_ devise such an experiment. We just have to hook the `WndProc` and capture a histogram of the messages in the sample period. **NOTE** The act of observation WILL change the thing observed. I will slow down the flooding of the queue and may result in an extra 1 or 2 WM_USER _entries. Nevertheless, the conclusion seems inescapable.
 
 ___
 
@@ -34,7 +37,7 @@ Hypothesis:
 
 1. THIS WOULD BE CONSISTENT WITH GOOD OS DESIGN:
 
-"Limit the extent that user messages (specifically) flooding the message queue can impact the stabililty of the process."
+"Limit the extent that user messages (specifically) flooding the message queue can impact the stability of the core Win32 message loop."
 
 2. The limit for _USER_ messages is set in the registry:
 
@@ -42,7 +45,7 @@ Hypothesis:
 
 3. To eliminate "tiny" timing variations, we will "greatly" exceed this limit e.g. N = 20000.
 
-4. *If a Histogram of WM_ message IDs is captured in `WndProc`:**
+4. *If a Histogram of `WM_` message IDs is captured in `WndProc`:*
  
 - We expect to be able to identify the message that results from `BeginInvoke` because of its high count.
 - We expect to see the count of WM_USER to be throttled right around `USERPostMessageLimit`.
@@ -180,7 +183,7 @@ ___
 
 **Second Hypothesis**
 
-If the button is clicked TWICE, the second click won't respond until ALL 10000+ BeginInvokes have cycled through!!! 
+If the button is clicked TWICE, the second click won't respond until ALL 10000+ `BeginInvoke` calls have cycled through!!! 
 
 This is why the _solution_ (if you really have to do this in the first place) would be to await individual BeginInvokes in the loop, so that new messages like WM_LBUTTONDOWN_ will be interspersed.
 
@@ -328,3 +331,35 @@ public partial class MainForm : Form, IMessageFilter
 }
 ~~~
 
+___
+
+**Windows Registry**
+
+Last but not least, fiddle with the registry value. I'll set it to 50000 and run the same loop.
+
+PC RESTART IS REQUIRED
+
+~~~plaintext
+With SAMPLE_SIZE=100000
+
+The SECOND mouse click FINALLY comes to front of queue @ 5.58 S
+[100000]: 0X000C WM_SYSCOLORCHANGE
+[400006]: 0X000D WM_GETTEXT
+[400006]: 0X000E WM_GETTEXTLENGTH
+[    2]: 0X0014 WM_ERASEBKGND
+[    1]: 0X0021 WM_MOUSEACTIVATE
+[    2]: 0X007F WM_GETICON
+[100000]: 0X00AE WM_NCUAHDRAWCAPTION (Undocumented, according to best available source)
+[    1]: 0X0200 WM_MOUSEMOVE
+[    2]: 0X0201 WM_LBUTTONDOWN
+[    2]: 0X0202 WM_LBUTTONUP
+[    1]: 0X0210 WM_PARENTNOTIFY
+[    2]: 0X0318 WM_PRINTCLIENT
+[50001]: 0XC212 Unknown (0xC212) UNEXPECTED
+~~~
+
+**Key Takeaways**
+
+1. **The WM_USER event maximum is consistent with the new limit**
+
+2. **WM_USER ID has Changed** indicating that Windows dynamically assigns ``WM_USER+X`` based on existing registrations within the same window class.
