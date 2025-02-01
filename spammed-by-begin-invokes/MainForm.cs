@@ -3,11 +3,13 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Windows.Forms.VisualStyles;
 
+// https://learn.microsoft.com/en-us/visualstudio/debugger/using-the-debuggerdisplay-attribute?view=vs-2022
+
 namespace spammed_by_begin_invokes
 {
     public partial class MainForm : Form
     {
-        const int SAMPLE_SIZE = 10001;
+        const int SAMPLE_SIZE = 20000;
         public MainForm()
         {
             InitializeComponent();
@@ -59,30 +61,32 @@ namespace spammed_by_begin_invokes
                         {
                             string messageName = i switch
                             {
-                                6 => "WM_ACTIVATE",
-                                7 => "WM_SETFOCUS",
-                                8 => "WM_KILLFOCUS",
-                                10 => "WM_CLOSE",
-                                12 => "WM_SYSCOLORCHANGE",
-                                13 => "WM_QUERYOPEN",
-                                14 => "WM_ERASEBKGND",
-                                20 => "WM_SETCURSOR",
-                                31 => "WM_WINDOWPOSCHANGING",
-                                32 => "WM_WINDOWPOSCHANGED",
-                                43 => "WM_COMPACTING",
-                                70 => "WM_WINDOWPOSCHANGED",
-                                127 => "WM_GETICON",
-                                134 => "WM_NCACTIVATE",
-                                174 => "WM_ENABLE",
-                                309 => "WM_PRINTCLIENT",
-                                641 => "WM_IME_SETCONTEXT",
-                                642 => "WM_IME_NOTIFY",
-                                792 => "Unknown",
-                                49648 => "WM_USER+X (App-Defined Message)",
-                                _ => $"Unknown ({i})"
+                                0x0006 => "WM_ACTIVATE",
+                                0x0007 => "WM_SETFOCUS",
+                                0x0008 => "WM_KILLFOCUS",
+                                0x000A => "WM_CLOSE",
+                                0x000C => "WM_SYSCOLORCHANGE",
+                                0x000D => "WM_QUERYOPEN",
+                                0x000E => "WM_ERASEBKGND",
+                                0x0014 => "WM_SETCURSOR",
+                                0x001F => "WM_WINDOWPOSCHANGING",
+                                0x0020 => "WM_WINDOWPOSCHANGED",
+                                0x002B => "WM_COMPACTING",
+                                0x0046 => "WM_WINDOWPOSCHANGED",
+                                0x007F => "WM_GETICON",
+                                0x0086 => "WM_NCACTIVATE",
+                                0x00AE => "WM_NCUAHDRAWCAPTION (undocumented, according to 'best information'",
+                                0x0135 => "WM_PRINTCLIENT",
+                                0x0201 => "WM_LBUTTONDOWN",
+                                0x0202 => "WM_LBUTTONUP",  
+                                0x0281 => "WM_IME_SETCONTEXT",
+                                0x0282 => "WM_IME_NOTIFY",
+                                0x0318 => "Unknown (Possibly App-Specific)",
+                                0xC1F0 => "WM_USER+X (App-Defined Message)",
+                                _ => $"Unknown (0x{i:X4})"
                             };
 
-                            Debug.WriteLine($"[{_histogram[i], 6}]: 0X{i:X4} {messageName}");
+                            Debug.WriteLine($"[{_histogram[i], 5}]: 0X{i:X4} {messageName}");
                         }
                     }
                 }
@@ -92,7 +96,11 @@ namespace spammed_by_begin_invokes
         CancellationTokenSource? _cts = null;
         List<string> _updateScheduled = new ();
         List<string> _updateRun = new ();
+
+
         int[] _histogram = new int[0x10000];
+        DateTime _firstWMUSER;
+        DateTime _lastWMUSER;
         protected override void WndProc(ref Message m)
         {
             base.WndProc(ref m);
